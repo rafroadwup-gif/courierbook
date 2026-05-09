@@ -2,6 +2,8 @@
 import '../../core/app_export.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/app_navigation.dart';
+import '../../models/booking.dart';
+import '../../repositories/booking_repository.dart';
 import './widgets/consignment_info_card_widget.dart';
 import './widgets/customer_info_card_widget.dart';
 import './widgets/financial_info_card_widget.dart';
@@ -15,10 +17,9 @@ class BookingFormScreen extends StatefulWidget {
 }
 
 class _BookingFormScreenState extends State<BookingFormScreen> {
-  // TODO: Replace with Riverpod/Bloc for production
+  final _repository = BookingRepository();
   final _formKey = GlobalKey<FormState>();
   bool _isSaving = false;
-  bool _isSynced = false;
 
   // Form state
   final _consignmentController = TextEditingController();
@@ -60,15 +61,59 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
   }
 
   Future<void> _saveBooking() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      _showErrorSnackbar('Please fill all required fields');
+      return;
+    }
+
+    if (_isSaving) return; // Prevent duplicate saves
     setState(() => _isSaving = true);
-    // TODO: Replace with actual save to local DB + Google Sheets API sync
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
+
+    try {
+      final booking = Booking(
+        consignmentNumber: _consignmentController.text.trim(),
+        customerName: _customerNameController.text.trim(),
+        mobileNumber: _mobileController.text.trim(),
+        weight: double.parse(_weightController.text),
+        chargedAmount: _chargedAmount,
+        costAmount: _costAmount,
+        paymentType: _paymentType == 'COD' ? PaymentType.cod : PaymentType.prepaid,
+        codAmount: _paymentType == 'COD'
+            ? double.tryParse(_codAmountController.text) ?? 0.0
+            : 0.0,
+        courierName: _courierNameController.text.trim(),
+      );
+
+      await _repository.saveBooking(booking);
+
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+
+      _showSuccessSnackbar('Booking saved successfully');
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.bookingsListScreen,
+        (route) => false,
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        debugPrint('Error saving booking: $e');
+        _showErrorSnackbar('Failed to save booking: ${e.toString()}');
+      }
+    }
+  }
+
+  void _onConsignmentScanned(String value) {
     setState(() {
-      _isSaving = false;
-      _isSynced = true;
+      _consignmentController.text = value;
     });
+  }
+
+  void _showSuccessSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -80,7 +125,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
             ),
             const SizedBox(width: 8),
             Text(
-              'Booking saved & synced',
+              message,
               style: GoogleFonts.ibmPlexSans(fontSize: 13),
             ),
           ],
@@ -91,19 +136,35 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
         duration: const Duration(seconds: 2),
       ),
     );
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.bookingsListScreen,
-      (route) => false,
-    );
   }
 
-  void _onConsignmentScanned(String value) {
-    setState(() {
-      _consignmentController.text = value;
-    });
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(
+              Icons.error_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: GoogleFonts.ibmPlexSans(fontSize: 13),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: AppTheme.errorColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -133,43 +194,6 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
             color: const Color(0xFF1A2340),
           ),
         ),
-        actions: [
-          // Sync status indicator
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Row(
-              children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: _isSynced
-                      ? const Icon(
-                          Icons.cloud_done_rounded,
-                          color: AppTheme.success,
-                          size: 20,
-                          key: ValueKey('synced'),
-                        )
-                      : const Icon(
-                          Icons.cloud_off_rounded,
-                          color: Color(0xFF90A4AE),
-                          size: 20,
-                          key: ValueKey('offline'),
-                        ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  _isSynced ? 'Synced' : 'Offline',
-                  style: GoogleFonts.ibmPlexSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: _isSynced
-                        ? AppTheme.success
-                        : const Color(0xFF90A4AE),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
       body: SafeArea(
         child: Form(
