@@ -1,17 +1,17 @@
 import '../../core/app_export.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/app_navigation.dart';
+import '../../models/booking.dart';
+import '../../repositories/booking_repository.dart';
 import './widgets/booking_card_widget.dart';
 import './widgets/booking_filter_chips_widget.dart';
 import './widgets/section_header_widget.dart';
 import './widgets/summary_banner_widget.dart';
 
-// ─── Data Model ───────────────────────────────────────────────
-enum PaymentType { cod, prepaid }
-
+// ─── Data Model (Display) ───────────────────────────────────────
 enum SyncStatus { synced, pending, offline }
 
-class BookingModel {
+class BookingDisplayModel {
   final String id;
   final String consignmentNumber;
   final String customerName;
@@ -26,7 +26,7 @@ class BookingModel {
   final DateTime createdAt;
   final SyncStatus syncStatus;
 
-  BookingModel({
+  BookingDisplayModel({
     required this.id,
     required this.consignmentNumber,
     required this.customerName,
@@ -42,177 +42,24 @@ class BookingModel {
     required this.syncStatus,
   });
 
-  static PaymentType _paymentFromString(String v) {
-    switch (v) {
-      case 'prepaid':
-        return PaymentType.prepaid;
-      default:
-        return PaymentType.cod;
-    }
-  }
-
-  static SyncStatus _syncFromString(String v) {
-    switch (v) {
-      case 'synced':
-        return SyncStatus.synced;
-      case 'offline':
-        return SyncStatus.offline;
-      default:
-        return SyncStatus.pending;
-    }
-  }
-
-  factory BookingModel.fromMap(Map<String, dynamic> map) {
-    final charged = (map['chargedAmount'] as num).toDouble();
-    final cost = (map['costAmount'] as num).toDouble();
-    return BookingModel(
-      id: map['id'] as String,
-      consignmentNumber: map['consignmentNumber'] as String,
-      customerName: map['customerName'] as String,
-      mobileNumber: map['mobileNumber'] as String,
-      weight: (map['weight'] as num).toDouble(),
-      chargedAmount: charged,
-      costAmount: cost,
-      profit: charged - cost,
-      paymentType: _paymentFromString(map['paymentType'] as String),
-      codAmount: (map['codAmount'] as num).toDouble(),
-      courierName: map['courierName'] as String,
-      createdAt: DateTime.parse(map['createdAt'] as String),
-      syncStatus: _syncFromString(map['syncStatus'] as String),
+  factory BookingDisplayModel.fromBooking(Booking booking) {
+    return BookingDisplayModel(
+      id: booking.id,
+      consignmentNumber: booking.consignmentNumber,
+      customerName: booking.customerName,
+      mobileNumber: booking.mobileNumber,
+      weight: booking.weight,
+      chargedAmount: booking.chargedAmount,
+      costAmount: booking.costAmount,
+      profit: booking.profit,
+      paymentType: booking.paymentType,
+      codAmount: booking.codAmount,
+      courierName: booking.courierName,
+      createdAt: booking.createdAt,
+      syncStatus: SyncStatus.synced,
     );
   }
-
-  Map<String, dynamic> toMap() => {
-    'id': id,
-    'consignmentNumber': consignmentNumber,
-    'customerName': customerName,
-    'mobileNumber': mobileNumber,
-    'weight': weight,
-    'chargedAmount': chargedAmount,
-    'costAmount': costAmount,
-    'paymentType': paymentType == PaymentType.cod ? 'cod' : 'prepaid',
-    'codAmount': codAmount,
-    'courierName': courierName,
-    'createdAt': createdAt.toIso8601String(),
-    'syncStatus': syncStatus.name,
-  };
 }
-
-// ─── Mock Data ────────────────────────────────────────────────
-final List<Map<String, dynamic>> _mockBookingMaps = [
-  {
-    'id': 'b001',
-    'consignmentNumber': 'CB2024051901',
-    'customerName': 'Priya Subramaniam',
-    'mobileNumber': '9876543210',
-    'weight': 1.5,
-    'chargedAmount': 180.0,
-    'costAmount': 110.0,
-    'paymentType': 'cod',
-    'codAmount': 1200.0,
-    'courierName': 'DTDC',
-    'createdAt': '2026-05-09T09:15:00',
-    'syncStatus': 'synced',
-  },
-  {
-    'id': 'b002',
-    'consignmentNumber': 'CB2024051902',
-    'customerName': 'Arjun Mehta',
-    'mobileNumber': '9123456780',
-    'weight': 3.2,
-    'chargedAmount': 320.0,
-    'costAmount': 210.0,
-    'paymentType': 'prepaid',
-    'codAmount': 0.0,
-    'courierName': 'BlueDart',
-    'createdAt': '2026-05-09T10:22:00',
-    'syncStatus': 'synced',
-  },
-  {
-    'id': 'b003',
-    'consignmentNumber': 'CB2024051903',
-    'customerName': 'Fatima Noor',
-    'mobileNumber': '9988776655',
-    'weight': 0.8,
-    'chargedAmount': 95.0,
-    'costAmount': 65.0,
-    'paymentType': 'cod',
-    'codAmount': 450.0,
-    'courierName': 'Delhivery',
-    'createdAt': '2026-05-09T11:05:00',
-    'syncStatus': 'pending',
-  },
-  {
-    'id': 'b004',
-    'consignmentNumber': 'CB2024051904',
-    'customerName': 'Ravi Shankar Pillai',
-    'mobileNumber': '9012345678',
-    'weight': 5.0,
-    'chargedAmount': 520.0,
-    'costAmount': 390.0,
-    'paymentType': 'prepaid',
-    'codAmount': 0.0,
-    'courierName': 'Ekart',
-    'createdAt': '2026-05-09T12:30:00',
-    'syncStatus': 'offline',
-  },
-  {
-    'id': 'b005',
-    'consignmentNumber': 'CB2024051905',
-    'customerName': 'Sunita Devi',
-    'mobileNumber': '8765432109',
-    'weight': 2.1,
-    'chargedAmount': 240.0,
-    'costAmount': 170.0,
-    'paymentType': 'cod',
-    'codAmount': 850.0,
-    'courierName': 'DTDC',
-    'createdAt': '2026-05-09T13:45:00',
-    'syncStatus': 'synced',
-  },
-  {
-    'id': 'b006',
-    'consignmentNumber': 'CB2024051906',
-    'customerName': 'Mohammed Irfan',
-    'mobileNumber': '7654321098',
-    'weight': 1.0,
-    'chargedAmount': 130.0,
-    'costAmount': 95.0,
-    'paymentType': 'prepaid',
-    'codAmount': 0.0,
-    'courierName': 'Xpressbees',
-    'createdAt': '2026-05-08T09:00:00',
-    'syncStatus': 'synced',
-  },
-  {
-    'id': 'b007',
-    'consignmentNumber': 'CB2024051907',
-    'customerName': 'Kavitha Ramachandran',
-    'mobileNumber': '9345678901',
-    'weight': 4.5,
-    'chargedAmount': 480.0,
-    'costAmount': 360.0,
-    'paymentType': 'cod',
-    'codAmount': 2200.0,
-    'courierName': 'BlueDart',
-    'createdAt': '2026-05-08T11:20:00',
-    'syncStatus': 'synced',
-  },
-  {
-    'id': 'b008',
-    'consignmentNumber': 'CB2024051908',
-    'customerName': 'Deepak Verma',
-    'mobileNumber': '8901234567',
-    'weight': 0.5,
-    'chargedAmount': 75.0,
-    'costAmount': 55.0,
-    'paymentType': 'prepaid',
-    'codAmount': 0.0,
-    'courierName': 'Delhivery',
-    'createdAt': '2026-05-08T14:10:00',
-    'syncStatus': 'pending',
-  },
-];
 
 // ─── Screen ───────────────────────────────────────────────────
 class BookingsListScreen extends StatefulWidget {
@@ -223,9 +70,9 @@ class BookingsListScreen extends StatefulWidget {
 }
 
 class _BookingsListScreenState extends State<BookingsListScreen> {
-  // TODO: Replace with Riverpod/Bloc for production
-  List<BookingModel> _allBookings = [];
-  List<BookingModel> _filteredBookings = [];
+  final _repository = BookingRepository();
+  List<BookingDisplayModel> _allBookings = [];
+  List<BookingDisplayModel> _filteredBookings = [];
   String _activeFilter = 'All';
   String _searchQuery = '';
   bool _isLoading = true;
@@ -235,12 +82,7 @@ class _BookingsListScreenState extends State<BookingsListScreen> {
   @override
   void initState() {
     super.initState();
-    _allBookings = _mockBookingMaps.map(BookingModel.fromMap).toList();
-    // Simulate initial load
-    Future.delayed(const Duration(milliseconds: 700), () {
-      if (mounted) setState(() => _isLoading = false);
-    });
-    _applyFilters();
+    _loadBookings();
   }
 
   @override
@@ -249,16 +91,36 @@ class _BookingsListScreenState extends State<BookingsListScreen> {
     super.dispose();
   }
 
+  Future<void> _loadBookings() async {
+    setState(() => _isLoading = true);
+    try {
+      final bookings = await _repository.getAllBookings();
+      setState(() {
+        _allBookings =
+            bookings.map(BookingDisplayModel.fromBooking).toList();
+      });
+    } catch (e) {
+      debugPrint('Error loading bookings: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _applyFilters();
+      }
+    }
+  }
+
   void _applyFilters() {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
 
-    List<BookingModel> result = List.from(_allBookings);
+    List<BookingDisplayModel> result = List.from(_allBookings);
 
     // Filter
     switch (_activeFilter) {
       case 'COD':
-        result = result.where((b) => b.paymentType == PaymentType.cod).toList();
+        result = result
+            .where((b) => b.paymentType == PaymentType.cod)
+            .toList();
         break;
       case 'Prepaid':
         result = result
@@ -269,9 +131,8 @@ class _BookingsListScreenState extends State<BookingsListScreen> {
         result = result.where((b) => b.createdAt.isAfter(todayStart)).toList();
         break;
       case 'Synced':
-        result = result
-            .where((b) => b.syncStatus == SyncStatus.synced)
-            .toList();
+        result =
+            result.where((b) => b.syncStatus == SyncStatus.synced).toList();
         break;
     }
 
@@ -304,8 +165,7 @@ class _BookingsListScreenState extends State<BookingsListScreen> {
 
   Future<void> _onRefresh() async {
     setState(() => _isSyncing = true);
-    // TODO: Replace with actual Google Sheets API sync
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await _loadBookings();
     if (!mounted) return;
     setState(() => _isSyncing = false);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -315,7 +175,7 @@ class _BookingsListScreenState extends State<BookingsListScreen> {
             const Icon(Icons.cloud_done_rounded, color: Colors.white, size: 16),
             const SizedBox(width: 8),
             Text(
-              'Synced with Google Sheets',
+              'Bookings refreshed',
               style: GoogleFonts.ibmPlexSans(fontSize: 13),
             ),
           ],
@@ -329,8 +189,8 @@ class _BookingsListScreenState extends State<BookingsListScreen> {
   }
 
   // Group bookings by date
-  Map<String, List<BookingModel>> get _groupedBookings {
-    final Map<String, List<BookingModel>> groups = {};
+  Map<String, List<BookingDisplayModel>> get _groupedBookings {
+    final Map<String, List<BookingDisplayModel>> groups = {};
     final now = DateTime.now();
     for (final b in _filteredBookings) {
       final d = b.createdAt;
@@ -351,7 +211,7 @@ class _BookingsListScreenState extends State<BookingsListScreen> {
   }
 
   // Today's stats
-  List<BookingModel> get _todayBookings {
+  List<BookingDisplayModel> get _todayBookings {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day);
     return _allBookings.where((b) => b.createdAt.isAfter(start)).toList();
@@ -417,7 +277,7 @@ class _BookingsListScreenState extends State<BookingsListScreen> {
                     color: AppTheme.primary,
                     size: 22,
                   ),
-            tooltip: 'Sync with Google Sheets',
+            tooltip: 'Refresh bookings',
           ),
           IconButton(
             onPressed: () =>
@@ -562,7 +422,7 @@ class _BookingsListScreenState extends State<BookingsListScreen> {
 }
 
 class _AnimatedBookingCard extends StatefulWidget {
-  final BookingModel booking;
+  final BookingDisplayModel booking;
   final int animationIndex;
 
   const _AnimatedBookingCard({
